@@ -1,0 +1,213 @@
+﻿@page "/configuration"
+@using MQTTManager.DB.Model;
+@using MQTTManager.DB.Model.Enum;
+@using MQTTManager.Services;
+
+@inject IBrokerConfigurationService ConfigurationService
+<PageTitle>Konfiguracja</PageTitle>
+
+<MudGrid>
+    <MudItem md="12" sm="12">
+        <MudText Typo="Typo.h3">Dodaj nową konfigurację brokera</MudText>
+    </MudItem>
+    <MudItem md="4" sm="12">
+        <MudTextField T="string" @bind-Value="brokerConfig.Name" Label="Nazwa" Required="true"></MudTextField>
+    </MudItem>
+    <MudItem md="4" sm="12">
+        <MudNumericField T="int" @bind-Value="brokerConfig.Port" Label="Port" Required="true"></MudNumericField>
+    </MudItem>
+    <MudItem md="4" sm="12">
+        <MudSelect @bind-Value="brokerConfig.Authorization" Label="Typ autoryzacji" Required="true">
+            <MudSelectItem Value="AuthorizationTypes.TOKEN" />
+            <MudSelectItem Value="AuthorizationTypes.NORMAL" />
+            <MudSelectItem Value="AuthorizationTypes.NONE" />
+        </MudSelect>
+    </MudItem>
+    <MudItem md="2" sm="12">
+        <MudButton OnClick="Cancel" Class="mb-2">Anuluj</MudButton>
+    </MudItem>
+    <MudItem md="8" sm="12"></MudItem>
+    <MudItem md="2" sm="12">
+        <MudButton OnClick="Submit" ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Warning" Class="ml-auto mb-2">Dodaj</MudButton>
+    </MudItem>
+
+
+    <MudItem md="12" sm="12">
+        <MudText Typo="Typo.h3">Lista konfiguracji brokera</MudText>
+    </MudItem>
+    <MudItem md="12" sm="12">
+        <MudTable Items="@configurations" Hover="true" Breakpoint="Breakpoint.Sm" Striped="true">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Nazwa</MudTh>
+                <MudTh>Port</MudTh>
+                <MudTh>Autoryzacja</MudTh>
+                <MudTh>Akcje</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                @foreach (var configuration in configurations)
+                {
+                        <MudTd>@configuration.Id</MudTd>
+                        <MudTd>@configuration.Name</MudTd>
+                        <MudTd>@configuration.Port</MudTd>
+                        <MudTd>@configuration.Authorization</MudTd>
+                        <MudTd>Akcje</MudTd>
+                }
+            </RowTemplate>
+        </MudTable>
+    </MudItem>
+
+
+    <MudTable Items="@Elements" Hover="true" CanCancelEdit="true" Filter="new Func<Element,bool>(FilterFunc)"
+          @bind-SelectedItem="selectedItem1" SortLabel="Sort By" CommitEditTooltip="Commit Edit"
+          OnCommitEditClick="@(() => Snackbar.Add("Commit Edit Handler Invoked"))" RowEditPreview="BackupItem" RowEditCancel="ResetItemToOriginalValues"
+          RowEditCommit="ItemHasBeenCommitted" IsEditRowSwitchingBlocked="@blockSwitch" ApplyButtonPosition="@applyButtonPosition" EditButtonPosition="@editButtonPosition" EditTrigger="@editTrigger">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Periodic Elements</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <ColGroup>
+        @if (applyButtonPosition.DisplayApplyButtonAtStart() || (editButtonPosition.DisplayEditButtonAtStart() && editTrigger == TableEditTrigger.EditButton))
+        {
+            <col style="width:50px;" />
+        }
+        <col style="width:50px;" />
+        <col style="width:80px;" />
+        <col style="width:50%;" />
+        <col />
+        <col />
+        @if (applyButtonPosition.DisplayApplyButtonAtEnd() || (editButtonPosition.DisplayEditButtonAtEnd() && editTrigger == TableEditTrigger.EditButton))
+        {
+            <col style="width:50px;" />
+        }
+    </ColGroup>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortBy="new Func<Element, object>(x=>x.Number)">Nr</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Element, object>(x=>x.Sign)">Sign</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel InitialDirection="SortDirection.Ascending" SortBy="new Func<Element, object>(x=>x.Name)">Name</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Element, object>(x=>x.Position)">Position</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Element, object>(x=>x.Molar)">Mass</MudTableSortLabel></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Nr">@context.Number</MudTd>
+        <MudTd DataLabel="Sign">@context.Sign</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Position">@context.Position</MudTd>
+        <MudTd DataLabel="Molar mass">@context.Molar</MudTd>
+    </RowTemplate>
+    <RowEditingTemplate>
+        <MudTd DataLabel="Nr">@context.Number</MudTd>
+        <MudTd DataLabel="Sign">
+            <MudTextField @bind-Value="@context.Sign" Required />
+        </MudTd>
+        <MudTd DataLabel="Name">
+            <MudTextField @bind-Value="@context.Name" Required />
+        </MudTd>
+        <MudTd DataLabel="Position">
+            <MudNumericField @bind-Value="@context.Position" Required Min="1" />
+        </MudTd>
+        <MudTd DataLabel="Molar mass">
+            <MudTextField @bind-Value="@context.Molar" Required />
+        </MudTd>
+    </RowEditingTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+    <EditButtonContent Context="button">
+        <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" Class="pa-0" OnClick="@button.ButtonAction" Disabled="@button.ButtonDisabled" />
+    </EditButtonContent>
+</MudTable>
+
+</MudGrid>
+@code {
+    private List<BrokerConfigurationModel> configurations;
+    private BrokerConfigurationModel brokerConfig = new BrokerConfigurationModel();
+
+    protected override async Task OnInitializedAsync()
+    {
+        configurations = await ConfigurationService.GetBrokerConfigurationList();
+    }
+
+
+    private async Task Submit()
+    {
+        await ConfigurationService.AddBrokerConfiguration(brokerConfig);
+        configurations = await ConfigurationService.GetBrokerConfigurationList(); // Odświeżanie listy konfiguracji
+    }
+
+    private async Task Cancel()
+    {
+        brokerConfig = new BrokerConfigurationModel();
+    }
+
+    private List<string> editEvents = new();
+    private bool dense = false;
+    private bool hover = true;
+    private bool ronly = false;
+    private bool canCancelEdit = false;
+    private bool blockSwitch = false;
+    private string searchString = "";
+    private Element selectedItem1 = null;
+    private Element elementBeforeEdit;
+    private HashSet<Element> selectedItems1 = new HashSet<Element>();
+    private TableApplyButtonPosition applyButtonPosition = TableApplyButtonPosition.End;
+    private TableEditButtonPosition editButtonPosition = TableEditButtonPosition.End;
+    private TableEditTrigger editTrigger = TableEditTrigger.RowClick;
+    private IEnumerable<Element> Elements = new List<Element>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Elements = await httpClient.GetFromJsonAsync<List<Element>>("webapi/periodictable");
+    }
+
+    private void ClearEventLog()
+    {
+        editEvents.Clear();
+    }
+
+    private void AddEditionEvent(string message)
+    {
+        editEvents.Add(message);
+        StateHasChanged();
+    }
+
+    private void BackupItem(object element)
+    {
+        elementBeforeEdit = new()
+            {
+                Sign = ((Element)element).Sign,
+                Name = ((Element)element).Name,
+                Molar = ((Element)element).Molar,
+                Position = ((Element)element).Position
+            };
+        AddEditionEvent($"RowEditPreview event: made a backup of Element {((Element)element).Name}");
+    }
+
+    private void ItemHasBeenCommitted(object element)
+    {
+        AddEditionEvent($"RowEditCommit event: Changes to Element {((Element)element).Name} committed");
+    }
+
+    private void ResetItemToOriginalValues(object element)
+    {
+        ((Element)element).Sign = elementBeforeEdit.Sign;
+        ((Element)element).Name = elementBeforeEdit.Name;
+        ((Element)element).Molar = elementBeforeEdit.Molar;
+        ((Element)element).Position = elementBeforeEdit.Position;
+        AddEditionEvent($"RowEditCancel event: Editing of Element {((Element)element).Name} canceled");
+    }
+
+    private bool FilterFunc(Element element)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.Sign.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if ($"{element.Number} {element.Position} {element.Molar}".Contains(searchString))
+            return true;
+        return false;
+    }
+}
