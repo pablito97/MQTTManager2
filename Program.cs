@@ -10,6 +10,7 @@ using MudBlazor.Services;
 using Serilog.Events;
 using Serilog;
 using MudBlazor;
+using MQTTManager.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +54,7 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
+builder.Services.AddScoped<IBrokerConfigurationService, BrokerConfigurationService>();
 
 var app = builder.Build();
 
