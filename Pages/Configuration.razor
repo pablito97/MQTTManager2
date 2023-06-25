@@ -3,12 +3,15 @@
 @using MQTTManager.DB.Model.Enum;
 @using MQTTManager.Services;
 
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 @inject IBrokerConfigurationService ConfigurationService
+
 <PageTitle>Konfiguracja</PageTitle>
 
 <MudGrid>
     <MudItem md="12" sm="12">
-        <MudText Typo="Typo.h3">Dodaj nową konfigurację brokera</MudText>
+        <MudText Typo="Typo.h6">Dodaj nową konfigurację brokera</MudText>
     </MudItem>
     <MudItem md="4" sm="12">
         <MudTextField T="string" @bind-Value="brokerConfig.Name" Label="Nazwa" Required="true"></MudTextField>
@@ -31,109 +34,163 @@
         <MudButton OnClick="Submit" ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Warning" Class="ml-auto mb-2">Dodaj</MudButton>
     </MudItem>
 
-
     <MudItem md="12" sm="12">
-        <MudText Typo="Typo.h3">Lista konfiguracji brokera</MudText>
-    </MudItem>
-    <MudItem md="12" sm="12">
-        <MudTable Items="@configurations" Hover="true" Breakpoint="Breakpoint.Sm" Striped="true">
+        <MudTable ServerData="@(new Func<TableState, Task<TableData<BrokerConfigurationModel>>>(ServerReload))"
+                  Dense="true" Hover="true" @ref="table" GroupBy="@_groupDefinition"
+                  GroupHeaderStyle="background-color:var(--mud-palette-background-grey)"
+                  GroupFooterClass="mb-4">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Lista konfiguracji brokera</MudText>
+                <MudSpacer />
+                <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <ColGroup>
+                @if (_groupDefinition.Expandable)
+                {
+                    <col style="width: 60px;" />
+                }
+                <col />
+                <col />
+                <col />
+            </ColGroup>
             <HeaderContent>
-                <MudTh>Id</MudTh>
-                <MudTh>Nazwa</MudTh>
-                <MudTh>Port</MudTh>
-                <MudTh>Autoryzacja</MudTh>
+                <MudTh><MudTableSortLabel SortLabel="name_field" T="BrokerConfigurationModel">Nazwa</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortLabel="port_field" T="BrokerConfigurationModel">Port</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortLabel="auth_field" T="BrokerConfigurationModel">Autoryzacja</MudTableSortLabel></MudTh>
                 <MudTh>Akcje</MudTh>
             </HeaderContent>
-            <RowTemplate>
-                @foreach (var configuration in configurations)
-                {
-                        <MudTd>@configuration.Id</MudTd>
-                        <MudTd>@configuration.Name</MudTd>
-                        <MudTd>@configuration.Port</MudTd>
-                        <MudTd>@configuration.Authorization</MudTd>
-                        <MudTd>Akcje</MudTd>
-                }
+
+            <GroupHeaderTemplate>
+                <MudTh Class="mud-table-cell-custom-group" colspan="5">
+                    @if((bool)context.Key)
+                    {
+                        <text>Domyślne</text>
+                    }
+                    else
+                    {
+                        <text>Pozostałe</text>
+                    }
+                </MudTh>
+            </GroupHeaderTemplate>
+
+                <RowTemplate>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Port">@context.Port</MudTd>
+                    <MudTd DataLabel="Authorization">@context.Authorization</MudTd>
+                    <MudTd>
+                        <MudTooltip Arrow="true" Text="Edytuj konfigurację">
+                            <MudFab Style="width: 35px;height: 30px" IconColor="Color.Warning" Class="hover:mud-warning-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.Edit" Size="Size.Small" OnClick="@(() => Edit(@context.Id))"></MudFab>
+                        </MudTooltip>
+                        <MudTooltip Arrow="true" Text="Usuń konfigurację">
+                            <MudFab Style="width: 35px;height: 30px" IconColor="Color.Error" Class="hover:mud-error-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.Delete" Size="Size.Small" OnClick="@(() => Delete(@context.Id))"></MudFab>
+                        </MudTooltip>
+                        @if (context.Default == false)
+                    {
+                        <MudTooltip Arrow="true" Text="Ustaw jako domyślny">
+                            <MudFab Style="width: 35px;height: 30px" IconColor="Color.Success" Class="hover:mud-success-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.CheckCircleOutline" Size="Size.Small" OnClick="@(() => SetAsDefault(@context.Id))"></MudFab>
+                        </MudTooltip>
+                    }
+                </MudTd>
             </RowTemplate>
+            <NoRecordsContent>
+                <MudText>Brak wyników do wyświetlenia</MudText>
+            </NoRecordsContent>
+            <LoadingContent>
+                <MudText>Loading...</MudText>
+            </LoadingContent>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
         </MudTable>
     </MudItem>
-
-
-    <MudTable Items="@Elements" Hover="true" CanCancelEdit="true" Filter="new Func<Element,bool>(FilterFunc)"
-          @bind-SelectedItem="selectedItem1" SortLabel="Sort By" CommitEditTooltip="Commit Edit"
-          OnCommitEditClick="@(() => Snackbar.Add("Commit Edit Handler Invoked"))" RowEditPreview="BackupItem" RowEditCancel="ResetItemToOriginalValues"
-          RowEditCommit="ItemHasBeenCommitted" IsEditRowSwitchingBlocked="@blockSwitch" ApplyButtonPosition="@applyButtonPosition" EditButtonPosition="@editButtonPosition" EditTrigger="@editTrigger">
-    <ToolBarContent>
-        <MudText Typo="Typo.h6">Periodic Elements</MudText>
-        <MudSpacer />
-        <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-    </ToolBarContent>
-    <ColGroup>
-        @if (applyButtonPosition.DisplayApplyButtonAtStart() || (editButtonPosition.DisplayEditButtonAtStart() && editTrigger == TableEditTrigger.EditButton))
-        {
-            <col style="width:50px;" />
-        }
-        <col style="width:50px;" />
-        <col style="width:80px;" />
-        <col style="width:50%;" />
-        <col />
-        <col />
-        @if (applyButtonPosition.DisplayApplyButtonAtEnd() || (editButtonPosition.DisplayEditButtonAtEnd() && editTrigger == TableEditTrigger.EditButton))
-        {
-            <col style="width:50px;" />
-        }
-    </ColGroup>
-    <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<Element, object>(x=>x.Number)">Nr</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Element, object>(x=>x.Sign)">Sign</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel InitialDirection="SortDirection.Ascending" SortBy="new Func<Element, object>(x=>x.Name)">Name</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Element, object>(x=>x.Position)">Position</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Element, object>(x=>x.Molar)">Mass</MudTableSortLabel></MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Nr">@context.Number</MudTd>
-        <MudTd DataLabel="Sign">@context.Sign</MudTd>
-        <MudTd DataLabel="Name">@context.Name</MudTd>
-        <MudTd DataLabel="Position">@context.Position</MudTd>
-        <MudTd DataLabel="Molar mass">@context.Molar</MudTd>
-    </RowTemplate>
-    <RowEditingTemplate>
-        <MudTd DataLabel="Nr">@context.Number</MudTd>
-        <MudTd DataLabel="Sign">
-            <MudTextField @bind-Value="@context.Sign" Required />
-        </MudTd>
-        <MudTd DataLabel="Name">
-            <MudTextField @bind-Value="@context.Name" Required />
-        </MudTd>
-        <MudTd DataLabel="Position">
-            <MudNumericField @bind-Value="@context.Position" Required Min="1" />
-        </MudTd>
-        <MudTd DataLabel="Molar mass">
-            <MudTextField @bind-Value="@context.Molar" Required />
-        </MudTd>
-    </RowEditingTemplate>
-    <PagerContent>
-        <MudTablePager />
-    </PagerContent>
-    <EditButtonContent Context="button">
-        <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.Edit" Class="pa-0" OnClick="@button.ButtonAction" Disabled="@button.ButtonDisabled" />
-    </EditButtonContent>
-</MudTable>
-
 </MudGrid>
 @code {
-    private List<BrokerConfigurationModel> configurations;
+    private List<BrokerConfigurationModel> configurationsList = new List<BrokerConfigurationModel>();
     private BrokerConfigurationModel brokerConfig = new BrokerConfigurationModel();
+
+    private IEnumerable<BrokerConfigurationModel> pagedData;
+    private MudTable<BrokerConfigurationModel> table;
+
+    private int totalItems;
+    private string searchString = null;
 
     protected override async Task OnInitializedAsync()
     {
-        configurations = await ConfigurationService.GetBrokerConfigurationList();
-    }
 
+    }
 
     private async Task Submit()
     {
-        await ConfigurationService.AddBrokerConfiguration(brokerConfig);
-        configurations = await ConfigurationService.GetBrokerConfigurationList(); // Odświeżanie listy konfiguracji
+        if (string.IsNullOrWhiteSpace(brokerConfig.Name) || brokerConfig.Port == 0)
+        {
+            Snackbar.Add("Podaj prawidłowe dane do konfiguracji", Severity.Warning);
+            return;
+        }
+
+        if (configurationsList.Contains(brokerConfig))
+        {
+            Snackbar.Add("Podobna konfiguracja istnieje", Severity.Warning);
+            return;
+        }
+
+        if (await ConfigurationService.AddBrokerConfiguration(brokerConfig))
+        {
+            Cancel();
+            table.ReloadServerData();
+            Snackbar.Add("Dodano nową konfiguracje", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Nie dodano nowej konfiguracji", Severity.Error);
+        }
+    }
+
+    private async Task Edit(int id)
+    {
+
+    }
+
+    private async Task Delete(int id)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+         "Czy na pewno chcesz usunąć konfigurację?",
+         "",
+         yesText: "Tak", cancelText: "Anuluj");
+        if (result != null)
+        {
+            if (await ConfigurationService.RemoveBrokerConfigurationById(id))
+            {
+                Cancel();
+                table.ReloadServerData();
+                Snackbar.Add("Usunięto konfiguracje", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Nie usunięto konfiguracji", Severity.Error);
+            }
+        }
+    }
+
+    private async Task SetAsDefault(int id)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+         "Czy chcesz ustawiś konfigurację jako domyślną?",
+         "Poprzednia konfiguracja zostanie zmieniona a broker zatrzymany jeśli był uruchomiony.",
+         yesText: "Tak", cancelText: "Anuluj");
+        if (result != null)
+        {
+            if (await ConfigurationService.SetAsDefaultBrokerConfigurationById(id))
+            {
+                Cancel();
+                table.ReloadServerData();
+                Snackbar.Add("Ustawiono nową domyślną konfigurację", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Wystąpił problem przy zmianie konfiguracji", Severity.Error);
+            }
+        }
     }
 
     private async Task Cancel()
@@ -141,73 +198,54 @@
         brokerConfig = new BrokerConfigurationModel();
     }
 
-    private List<string> editEvents = new();
-    private bool dense = false;
-    private bool hover = true;
-    private bool ronly = false;
-    private bool canCancelEdit = false;
-    private bool blockSwitch = false;
-    private string searchString = "";
-    private Element selectedItem1 = null;
-    private Element elementBeforeEdit;
-    private HashSet<Element> selectedItems1 = new HashSet<Element>();
-    private TableApplyButtonPosition applyButtonPosition = TableApplyButtonPosition.End;
-    private TableEditButtonPosition editButtonPosition = TableEditButtonPosition.End;
-    private TableEditTrigger editTrigger = TableEditTrigger.RowClick;
-    private IEnumerable<Element> Elements = new List<Element>();
+    private TableGroupDefinition<BrokerConfigurationModel> _groupDefinition = new()
+        {
+            GroupName = "Group",
+            Indentation = false,
+            Expandable = false,
+            Selector = (e) => e.Default
+        };
 
-    protected override async Task OnInitializedAsync()
+    private async Task<TableData<BrokerConfigurationModel>> ServerReload(TableState state)
     {
-        Elements = await httpClient.GetFromJsonAsync<List<Element>>("webapi/periodictable");
+        configurationsList = await ConfigurationService.GetBrokerConfigurationList();
+
+        IEnumerable<BrokerConfigurationModel> data = configurationsList;
+        await Task.Delay(300);
+        data = data.Where(element =>
+        {
+            if (string.IsNullOrWhiteSpace(searchString))
+                return true;
+            if (element.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if ($"{element.Id} {element.Name} {element.Port}".Contains(searchString))
+                return true;
+            return false;
+        }).ToArray();
+        totalItems = data.Count();
+        switch (state.SortLabel)
+        {
+            case "id_field":
+                data = data.OrderByDirection(state.SortDirection, o => o.Id);
+                break;
+            case "name_field":
+                data = data.OrderByDirection(state.SortDirection, o => o.Name);
+                break;
+            case "port_field":
+                data = data.OrderByDirection(state.SortDirection, o => o.Port);
+                break;
+            case "auth_field":
+                data = data.OrderByDirection(state.SortDirection, o => o.Authorization);
+                break;
+        }
+
+        pagedData = data.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
+        return new TableData<BrokerConfigurationModel>() { TotalItems = totalItems, Items = pagedData };
     }
 
-    private void ClearEventLog()
+    private void OnSearch(string text)
     {
-        editEvents.Clear();
-    }
-
-    private void AddEditionEvent(string message)
-    {
-        editEvents.Add(message);
-        StateHasChanged();
-    }
-
-    private void BackupItem(object element)
-    {
-        elementBeforeEdit = new()
-            {
-                Sign = ((Element)element).Sign,
-                Name = ((Element)element).Name,
-                Molar = ((Element)element).Molar,
-                Position = ((Element)element).Position
-            };
-        AddEditionEvent($"RowEditPreview event: made a backup of Element {((Element)element).Name}");
-    }
-
-    private void ItemHasBeenCommitted(object element)
-    {
-        AddEditionEvent($"RowEditCommit event: Changes to Element {((Element)element).Name} committed");
-    }
-
-    private void ResetItemToOriginalValues(object element)
-    {
-        ((Element)element).Sign = elementBeforeEdit.Sign;
-        ((Element)element).Name = elementBeforeEdit.Name;
-        ((Element)element).Molar = elementBeforeEdit.Molar;
-        ((Element)element).Position = elementBeforeEdit.Position;
-        AddEditionEvent($"RowEditCancel event: Editing of Element {((Element)element).Name} canceled");
-    }
-
-    private bool FilterFunc(Element element)
-    {
-        if (string.IsNullOrWhiteSpace(searchString))
-            return true;
-        if (element.Sign.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (element.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-            return true;
-        if ($"{element.Number} {element.Position} {element.Molar}".Contains(searchString))
-            return true;
-        return false;
+        searchString = text;
+        table.ReloadServerData();
     }
 }
