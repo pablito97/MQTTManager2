@@ -1,4 +1,5 @@
-﻿@inherits LayoutComponentBase
+﻿@using MQTTManager.DB.Model.Enum;
+@inherits LayoutComponentBase
 
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -26,23 +27,23 @@
             @Body
         </MudContainer>
     </MudMainContent>
+    <MudAppBar Bottom="true" Fixed="true" Elevation="1" Style="background: #f97504">
+        <MudToolBar>
+            <MudTooltip Arrow="true" Text="Status domyślnego brokera">
+                Broker: @brokerStatus
+            </MudTooltip>
+        </MudToolBar>
+    </MudAppBar>
 </MudLayout>
 
 @code {
     //#f04a2c
     //#f97504
     bool _drawerOpen = true;
+    StateTypes brokerStatus = StateTypes.RUNNING;
 
     void DrawerToggle()
     {
         _drawerOpen = !_drawerOpen;
     }
-
-    private MudTheme _currentTheme = new MudTheme()
-        {
-            Palette = new Palette
-            {
-                AppbarBackground = "#f97504",
-            },
-        };
 }
