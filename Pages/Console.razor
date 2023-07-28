@@ -1,0 +1,56 @@
+﻿@page "/console"
+@using Serilog
+@using Serilog.Events
+@using System.Collections.Concurrent;
+@inject ConcurrentQueue<LogEvent> LogEvents
+
+<PageTitle>Konsola</PageTitle>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem md="10">
+        <MudTooltip Arrow="true" Text="Logi ograniczone do 100 najnowszych">
+            <MudFab Style="width: 35px;height: 30px;" IconColor="Color.Info" Class="hover:mud-info-hover" IconSize="Size.Medium" StartIcon="@Icons.Material.Filled.Info" Size="Size.Medium" />
+        </MudTooltip>
+    </MudItem>
+    <MudItem md="10">
+        <MudSimpleTable Breakpoint="Breakpoint.Sm" Elevation="3">
+            <thead style="background-color: silver;">
+                <MudTh>Data</MudTh>
+                <MudTh>Ważność</MudTh>
+                <MudTh>Wiadomość</MudTh>
+            </thead>
+            <tbody>
+                @foreach (var logEvent in LogEvents.Reverse())
+                {
+                    if (@logEvent.Level == LogEventLevel.Warning)
+                    {
+                        <tr style="background-color: yellow;">
+                            <MudTd>@logEvent.Timestamp.ToLocalTime()</MudTd>
+                            <MudTd>@logEvent.Level</MudTd>
+                            <MudTd>@logEvent.RenderMessage()</MudTd>
+                        </tr>
+                    }
+                    else if (@logEvent.Level == LogEventLevel.Error)
+                    {
+                        <tr style="background-color: red;">
+                            <MudTd>@logEvent.Timestamp.ToLocalTime()</MudTd>
+                            <MudTd>@logEvent.Level</MudTd>
+                            <MudTd>@logEvent.RenderMessage()</MudTd>
+                        </tr>
+                    }
+                    else
+                    {
+                        <tr>
+                            <MudTd>@logEvent.Timestamp.ToLocalTime()</MudTd>
+                            <MudTd>@logEvent.Level</MudTd>
+                            <MudTd>@logEvent.RenderMessage()</MudTd>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </MudSimpleTable>
+    </MudItem>
+</MudGrid>
+@code {
+
+}

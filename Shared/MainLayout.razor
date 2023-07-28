@@ -12,18 +12,18 @@
     <MudAppBar Elevation="0" Style="background: #f04a2c">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Custom.Brands.MudBlazor" Color="Color.Inherit" Link="https://mudblazor.com/" Target="_blank" />
-        <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Link="https://github.com/MudBlazor/MudBlazor/" Target="_blank" />
+        <MudTooltip Arrow="true" Text="Strona autora">
+            <MudButton StartIcon="@Icons.Material.Filled.Copyright" Color="Color.Inherit" Link="https://pablitoprogramuje.pl/" Target="_blank">pablitoprogramuje</MudButton>
+        </MudTooltip>
     </MudAppBar>
     <MudDrawer @bind-Open="_drawerOpen" Elevation="1">
         <MudDrawerHeader>
-            @*<MudText Typo="Typo.h6">MQTTManager</MudText>*@
             <MudImage Src="images/MQTTManager_logo.png" Alt="Logo" Height="80"></MudImage>
         </MudDrawerHeader>
         <NavMenu />
     </MudDrawer>
     <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.Large" Class="my-16 pt-16">
+        <MudContainer MaxWidth="MaxWidth.Large" Class="my-16 pt-2">
             @Body
         </MudContainer>
     </MudMainContent>
@@ -46,4 +46,6 @@
     {
         _drawerOpen = !_drawerOpen;
     }
+
+
 }

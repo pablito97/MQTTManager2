@@ -29,4 +29,7 @@
     <ProjectReference Include="..\MQTTManager.Services\MQTTManager.Services.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Models\" />
+  </ItemGroup>
 </Project>

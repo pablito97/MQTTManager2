@@ -1,16 +1,13 @@
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
-using MQTTManager.Data;
 using MQTTManager.DB;
 using MudBlazor.Services;
 using Serilog.Events;
 using Serilog;
 using MudBlazor;
 using MQTTManager.Services;
+using System.Collections.Concurrent;
+using Serilog.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,7 +19,6 @@ options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")
 
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddSingleton<WeatherForecastService>();
 builder.Services.AddMudServices(config =>
 {
     config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;
@@ -36,6 +32,7 @@ builder.Services.AddMudServices(config =>
     config.SnackbarConfiguration.SnackbarVariant = Variant.Filled;
 });
 
+
 // Configure Serilog
 var logLevel = LogEventLevel.Information;
 
@@ -43,19 +40,24 @@ if (builder.Environment.IsDevelopment())
 {
     logLevel = LogEventLevel.Debug;
 }
+var logEvents = new ConcurrentQueue<LogEvent>();
 
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .WriteTo.Console()
+    .WriteTo.Sink(new InMemorySink(logEvents))
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
     .MinimumLevel.Override("System", LogEventLevel.Information)
     .MinimumLevel.Is(logLevel)
     .CreateLogger();
 
-builder.Host.UseSerilog();
+// Add the same logEvents instance to the DI container
+builder.Services.AddSingleton(logEvents);
 
 builder.Services.AddScoped<IBrokerConfigurationService, BrokerConfigurationService>();
+builder.Services.AddScoped<IAuthorizationConfService, AuthorizationConfService>();
 
+builder.Host.UseSerilog();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
