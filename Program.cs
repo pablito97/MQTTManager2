@@ -56,6 +56,7 @@ builder.Services.AddSingleton(logEvents);
 
 builder.Services.AddScoped<IBrokerConfigurationService, BrokerConfigurationService>();
 builder.Services.AddScoped<IAuthorizationConfService, AuthorizationConfService>();
+builder.Services.AddSingleton<IMqttBrokerService, MqttBrokerService>();
 
 builder.Host.UseSerilog();
 var app = builder.Build();

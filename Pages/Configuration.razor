@@ -7,6 +7,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IBrokerConfigurationService ConfigurationService
+@inject IMqttBrokerService MQTTService
 
 <PageTitle>Konfiguracja</PageTitle>
 
@@ -22,7 +23,7 @@
                 <tbody>
                 <MudTd>@defaultBrokerConfig.Name</MudTd>
                 <MudTd>@defaultBrokerConfig.Port</MudTd>
-                <MudTd>Running</MudTd>
+                <MudTd>@brokerStatus</MudTd>
                 <MudTd>
                     <MudTooltip Arrow="true" Text="Wystartuj broker">
                         <MudFab Style="width: 35px;height: 30px" IconColor="Color.Success" Class="hover:mud-success-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.PlayArrow" Size="Size.Small" OnClick="@(() => StartBroker())"></MudFab>
@@ -38,12 +39,12 @@
             </MudSimpleTable>
     </MudItem>
     <MudItem md="12" sm="12">
-        <MudTable ServerData="@(new Func<TableState, Task<TableData<BrokerConfigurationModel>>>(ServerReload))"
-                  Dense="true" Hover="true" @ref="table" GroupBy="@_groupDefinition"
-                  GroupHeaderStyle="background-color:var(--mud-palette-background-grey)"
-                  GroupFooterClass="mb-4" Loading="@_loading">
-                  
-            <ToolBarContent>
+            <MudTable ServerData="@ServerReload"
+                      Dense="true" Hover="true" @ref="table" GroupBy="@_groupDefinition"
+                      GroupHeaderStyle="background-color:var(--mud-palette-background-grey)"
+                      GroupFooterClass="mb-4" Loading="@_loading">
+
+                <ToolBarContent>
                 <MudButton OnClick="@AddNewBrokerConfigDialog" Variant="Variant.Filled" Color="Color.Warning" Class="ml-auto mb-2">Dodaj nową konfigurację</MudButton>
                 <MudSpacer />
                 <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
@@ -95,12 +96,12 @@
                                 <MudFab Style="width: 35px;height: 30px" IconColor="Color.Success" Class="hover:mud-success-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.CheckCircleOutline" Size="Size.Small" OnClick="@(() => SetAsDefault(@context.Id))"></MudFab>
                             </MudTooltip>
                         }
-                    @if (context.Authorization != AuthorizationTypes.NONE)
+                    @*@if (context.Authorization != AuthorizationTypes.NONE)
                     {
                         <MudTooltip Arrow="true" Text="Ustaw autoryzacje">
                             <MudFab Style="width: 35px;height: 30px" IconColor="Color.Info" Class="hover:mud-info-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.Key" Size="Size.Small" OnClick="@(() => SetAuthorization(@context))"></MudFab>
                         </MudTooltip>
-                    }
+                    }*@
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
@@ -113,19 +114,31 @@
     </MudItem>
 </MudGrid>
 @code {
+
+    [Parameter]
+    public EventCallback<StateTypes> OnBrokerStatusChanged { get; set; }
+
+    private async Task HandleBrokerStatusChange(StateTypes newStatus)
+    {
+        brokerStatus = newStatus;
+        await OnBrokerStatusChanged.InvokeAsync(newStatus);
+        StateHasChanged(); // Dodaj to
+    }
+
     private List<BrokerConfigurationModel> configurationsList = new List<BrokerConfigurationModel>();
     private BrokerConfigurationModel defaultBrokerConfig = new BrokerConfigurationModel();
-    private BrokerConfigurationModel brokerConfig = new BrokerConfigurationModel();
 
     private IEnumerable<BrokerConfigurationModel> pagedData;
     private MudTable<BrokerConfigurationModel> table;
 
-    private bool _loading = true;
+    private bool _loading = false;
     private int totalItems;
     private string searchString = null;
+    private StateTypes brokerStatus = StateTypes.STOPPED;
 
     protected override async Task OnInitializedAsync()
     {
+        _loading = true;
     }
 
     private async Task AddNewBrokerConfigDialog()
@@ -176,29 +189,6 @@
         }
     }
 
-    private async Task SetAuthorization(BrokerConfigurationModel broker)
-    {
-        var dialogOptions = new DialogOptions
-            {
-                CloseButton = true,
-                MaxWidth = MaxWidth.Medium,
-                Position = DialogPosition.Center,
-                DisableBackdropClick = true,
-                CloseOnEscapeKey = true,
-                FullWidth = true
-            };
-
-        var parameters = new DialogParameters();
-        parameters.Add("brokerConfig", broker);
-
-        var result = await DialogService.Show<AuthorizationBrokerConfigurationDialog>("Dodaj nową konfiguracje", parameters, dialogOptions).Result;
-
-        if (!result.Cancelled)
-        {
-            table.ReloadServerData();
-        }
-    }
-
     private async Task Delete(int id)
     {
         bool? result = await DialogService.ShowMessageBox(
@@ -229,6 +219,7 @@
         {
             if (await ConfigurationService.SetAsDefaultBrokerConfigurationById(id))
             {
+                await StopBroker();
                 table.ReloadServerData();
                 Snackbar.Add("Ustawiono nową domyślną konfigurację", Severity.Success);
             }
@@ -254,7 +245,7 @@
         if (defaultBrokerConfig == null) defaultBrokerConfig = new BrokerConfigurationModel();
 
         IEnumerable<BrokerConfigurationModel> data = configurationsList;
-        await Task.Delay(300);
+
         data = data.Where(element =>
         {
             if (string.IsNullOrWhiteSpace(searchString))
@@ -266,25 +257,33 @@
             return false;
         }).ToArray();
         totalItems = data.Count();
-        switch (state.SortLabel)
-        {
-            case "id_field":
-                data = data.OrderByDirection(state.SortDirection, o => o.Id);
-                break;
-            case "name_field":
-                data = data.OrderByDirection(state.SortDirection, o => o.Name);
-                break;
-            case "port_field":
-                data = data.OrderByDirection(state.SortDirection, o => o.Port);
-                break;
-            case "auth_field":
-                data = data.OrderByDirection(state.SortDirection, o => o.Authorization);
-                break;
-        }
+
+        data = state.SortDirection == SortDirection.None ?
+            data.OrderBy(item => item.Default).ThenBy(item => item.Name) :
+            data.OrderByDirection(state.SortDirection, GetSortingExpression(state.SortLabel));
 
         pagedData = data.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
         StateHasChanged();
+
+        _loading = false;
         return new TableData<BrokerConfigurationModel>() { TotalItems = totalItems, Items = pagedData };
+    }
+
+    private Func<BrokerConfigurationModel, object> GetSortingExpression(string sortLabel)
+    {
+        switch (sortLabel)
+        {
+            case "id_field":
+                return o => o.Id;
+            case "name_field":
+                return o => o.Name;
+            case "port_field":
+                return o => o.Port;
+            case "auth_field":
+                return o => o.Authorization;
+            default:
+                return o => o.Name;
+        }
     }
 
     private void OnSearch(string text)
@@ -293,18 +292,27 @@
         table.ReloadServerData();
     }
 
-    private void StartBroker()
+    private async Task StartBroker()
     {
-        
+        MQTTService.StartBrokerAsync(defaultBrokerConfig);
+        brokerStatus = MQTTService.IsBrokerRunning().Result;
+        await HandleBrokerStatusChange(brokerStatus);
+        StateHasChanged();
     }
 
-    private void StopBroker()
+    private async Task StopBroker()
     {
-
+        MQTTService.StopBrokerAsync();
+        brokerStatus = MQTTService.IsBrokerRunning().Result;
+        await HandleBrokerStatusChange(brokerStatus);
+        StateHasChanged();
     }
 
-    private void RestartBroker()
+    private async Task RestartBroker()
     {
-
+        MQTTService.RestartBrokerAsync(defaultBrokerConfig);
+        brokerStatus = MQTTService.IsBrokerRunning().Result;
+        await HandleBrokerStatusChange(brokerStatus);
+        StateHasChanged();
     }
 }

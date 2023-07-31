@@ -1,8 +1,10 @@
 ﻿@using MQTTManager.DB.Model.Enum;
+@using MQTTManager.Services;
 @inherits LayoutComponentBase
 
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IMqttBrokerService MQTTService
 
 <MudThemeProvider />
 <MudDialogProvider />
@@ -40,12 +42,21 @@
     //#f04a2c
     //#f97504
     bool _drawerOpen = true;
-    StateTypes brokerStatus = StateTypes.RUNNING;
+    StateTypes brokerStatus = StateTypes.STOPPED;
+
+    protected override async Task OnInitializedAsync()
+    {
+        
+    }
+
+    private void HandleBrokerStatusChange()
+    {
+        brokerStatus = MQTTService.IsBrokerRunning().Result;
+        StateHasChanged();
+    }
 
     void DrawerToggle()
     {
         _drawerOpen = !_drawerOpen;
     }
-
-
 }
