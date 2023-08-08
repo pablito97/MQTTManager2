@@ -1,8 +1,37 @@
-﻿<MudNavMenu Color="Color.Warning">
+﻿@using MQTTManager.Services;
+@inject AppState AppState
+
+<MudNavMenu Color="Color.Warning" Class="d-flex justify-space-around flex-wrap mt-4">
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
-    <MudNavLink Href="configuration" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.DisplaySettings">Konfiguracja MQTT</MudNavLink>
+    <MudNavLink Href="mqttconfiguration" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.DisplaySettings">Konfiguracja MQTT</MudNavLink>
     <MudNavLink Href="mqtt" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Public">Publikowanie/Subskrypcja</MudNavLink>
+    <MudNavLink Href="mqttclients" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">
+        Klienci MQTT
+        <MudBadge Content="@clientsCount" Color="Color.Warning" Overlap="false" Class="ml-1">
+        </MudBadge>
+    </MudNavLink>
     <MudNavLink Href="console" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Logi</MudNavLink>
     <MudNavLink Href="settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">Ustawienia</MudNavLink>
     <MudNavLink Href="help" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.HelpOutline">Pomoc</MudNavLink>
 </MudNavMenu>
+
+@code {
+    int clientsCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AppState.OnBrokerStatusChanged += UpdateUI;
+        clientsCount = AppState.ConnectedUsersCount;
+    }
+
+    private async void UpdateUI()
+    {
+        clientsCount = AppState.ConnectedUsersCount;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AppState.OnBrokerStatusChanged -= UpdateUI;
+    }
+}

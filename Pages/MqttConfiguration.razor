@@ -1,4 +1,4 @@
-﻿@page "/configuration"
+﻿@page "/mqttconfiguration"
 @using MQTTManager.DB.Model;
 @using MQTTManager.DB.Model.Enum;
 @using MQTTManager.Dialogs;
@@ -8,8 +8,9 @@
 @inject ISnackbar Snackbar
 @inject IBrokerConfigurationService ConfigurationService
 @inject IMqttBrokerService MQTTService
+@inject AppState AppState
 
-<PageTitle>Konfiguracja</PageTitle>
+<PageTitle>Konfiguracja MQTT</PageTitle>
 
 <MudGrid Justify="Justify.Center">
     <MudItem md="6" >
@@ -114,17 +115,6 @@
     </MudItem>
 </MudGrid>
 @code {
-
-    [Parameter]
-    public EventCallback<StateTypes> OnBrokerStatusChanged { get; set; }
-
-    private async Task HandleBrokerStatusChange(StateTypes newStatus)
-    {
-        brokerStatus = newStatus;
-        await OnBrokerStatusChanged.InvokeAsync(newStatus);
-        StateHasChanged(); // Dodaj to
-    }
-
     private List<BrokerConfigurationModel> configurationsList = new List<BrokerConfigurationModel>();
     private BrokerConfigurationModel defaultBrokerConfig = new BrokerConfigurationModel();
 
@@ -139,6 +129,8 @@
     protected override async Task OnInitializedAsync()
     {
         _loading = true;
+
+        AppState.OnBrokerStatusChanged += UpdateUI;
     }
 
     private async Task AddNewBrokerConfigDialog()
@@ -295,24 +287,26 @@
     private async Task StartBroker()
     {
         MQTTService.StartBrokerAsync(defaultBrokerConfig);
-        brokerStatus = MQTTService.IsBrokerRunning().Result;
-        await HandleBrokerStatusChange(brokerStatus);
-        StateHasChanged();
     }
 
     private async Task StopBroker()
     {
         MQTTService.StopBrokerAsync();
-        brokerStatus = MQTTService.IsBrokerRunning().Result;
-        await HandleBrokerStatusChange(brokerStatus);
-        StateHasChanged();
     }
 
     private async Task RestartBroker()
     {
         MQTTService.RestartBrokerAsync(defaultBrokerConfig);
-        brokerStatus = MQTTService.IsBrokerRunning().Result;
-        await HandleBrokerStatusChange(brokerStatus);
-        StateHasChanged();
+    }
+
+    private async void UpdateUI()
+    {
+        brokerStatus = AppState.BrokerStatus;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AppState.OnBrokerStatusChanged -= UpdateUI;
     }
 }

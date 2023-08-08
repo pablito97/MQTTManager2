@@ -1,0 +1,64 @@
+﻿@page "/mqttclients"
+
+@using MQTTManager.Services;
+@inject IMqttBrokerService MQTTService
+@inject ISnackbar Snackbar
+@inject AppState AppState
+
+<PageTitle>Klienci MQTT</PageTitle>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12">
+        <MudSimpleTable Style="overflow-x: auto;">
+            <thead>
+                <tr>
+                    @foreach (var h in headings)
+                    {
+                        <th>@h</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var client in clients)
+                {
+                    <tr>
+                        <td>@(counter + 1)</td>
+                        <td>@client</td>
+                        <td>
+                            <MudTooltip Arrow="true" Text="Rozłącz klienta">
+                                <MudFab Style="width: 35px;height: 30px" IconColor="Color.Error" Class="hover:mud-error-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.RemoveCircle" Size="Size.Small" OnClick="@(() => Disconnect(client))"></MudFab>
+                            </MudTooltip>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </MudItem>
+</MudGrid>
+
+@code {
+    List<string> clients = new List<string>();
+    string[] headings = { "ID", "Nazwa", "Rozłącz" };
+    int counter = 0;
+    protected override async Task OnInitializedAsync()
+    {
+        clients = MQTTService.GetConnectedClients();
+        AppState.OnBrokerStatusChanged += UpdateUI;
+    }
+
+    private void Disconnect(string client)
+    {
+        Snackbar.Add($"Rozłączam klienta {client}", Severity.Info);
+    }
+
+    private async void UpdateUI()
+    {
+        clients = MQTTService.GetConnectedClients();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AppState.OnBrokerStatusChanged -= UpdateUI;
+    }
+}

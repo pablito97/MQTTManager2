@@ -1,0 +1,174 @@
+﻿@page "/mqtt"
+@using MQTTManager.DB.Model;
+@using MQTTnet;
+@using System.Text;
+@using MQTTnet.Packets;
+
+<PageTitle>Publish/Subscribe MQTT</PageTitle>
+
+<MudChip Color="Color.Warning" Size="Size.Large" Icon="@Icons.Material.Filled.ArrowBackIos"  OnClick="@((e) => OpenDrawer())"/>
+
+<MudGrid>
+    <MudItem xs="12" visible="@_public">
+        <MudStack>
+            <MudPaper Class="pa-4">
+                <MudStack Row="true">
+                    <MudAvatar Color="Color.Success" Size="Size.Large">P</MudAvatar>
+                    <MudStack Justify="Justify.Center" Spacing="0">
+                        <MudText Typo="Typo.body1">Publikuj</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+            <MudPaper Class="pa-4">
+                <MudStack Spacing="4">
+                    <MudForm Disabled="Disabled">
+                        <MudTextField T="string" Label="Topic" />
+                        <MudTextField T="string" Label="Payload" />
+                        <MudNumericField T="int" Label="QoS" />
+                    </MudForm>
+                    <MudButton Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Send" Color="Color.Warning">Wyślij</MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudStack>
+    </MudItem>
+
+    <MudItem sm="3" visible="@_subscribe">
+        <MudStack>
+            <MudPaper Class="pa-4">
+                <MudStack Row="true">
+                    <MudAvatar Color="Color.Success" Size="Size.Large">S</MudAvatar>
+                    <MudStack Justify="Justify.Center" Spacing="0">
+                        <MudText Typo="Typo.body1">Subskrybuje</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+            @foreach (var sub in subscribe)
+            {
+                <MudPaper Class="pa-4">
+                    <MudStack Spacing="4">
+                        <MudTextField T="string" Label="Topic" Value="sub.BaseMessage.Topic" ReadOnly />
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudStack>
+    </MudItem>
+
+    <MudItem sm="6" visible="@_message">
+        <MudStack>
+            <MudPaper Class="pa-4">
+                <MudStack Row="true">
+                    <MudAvatar Color="Color.Warning" Size="Size.Large">W</MudAvatar>
+                    <MudStack Justify="Justify.Center" Spacing="0">
+                        <MudText Typo="Typo.body1">Wiadomości</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+            @foreach (var sub in subscribe)
+            {
+                <MudPaper Class="pa-4">
+                    <MudStack Spacing="4">
+                        <MudTextField T="string" Label="Topic" Value="@sub.BaseMessage.Topic" ReadOnly />
+                        <MudTextField T="string" Label="Payload" Value="@Encoding.UTF8.GetString(sub.BaseMessage.PayloadSegment)" ReadOnly />
+                        <MudStack Row="true">
+                            <MudTextField T="string" Label="Quality" Value="@sub.BaseMessage.QualityOfServiceLevel.ToString()" ReadOnly />
+                            <MudTextField T="string" Label="Client" Value="@sub.BaseMessage.UserProperties.Where(u => u.Name == "Client").First().Value" ReadOnly />
+                        </MudStack>
+                        <MudTextField T="string" Label="Payload" Value="@sub.MessageDate.ToString()" ReadOnly />
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudStack>
+    </MudItem>
+
+    <MudItem sm="3" visible="@_nosubscribe">
+        <MudStack>
+            <MudPaper Class="pa-4">
+                <MudStack Row="true">
+                    <MudAvatar Color="Color.Surface" Size="Size.Large">N</MudAvatar>
+                    <MudStack Justify="Justify.Center" Spacing="0">
+                        <MudText Typo="Typo.body1">Nie subskrybuje</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+            @foreach (var nosub in notsubscribe)
+            {
+                <MudPaper Class="pa-4">
+                    <MudStack Spacing="4">
+                        <MudTextField T="string" Label="Topic" Value="nosub.BaseMessage.Topic" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning" DisableElevation="true">Dodaj</MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudStack>
+    </MudItem>
+</MudGrid>
+
+
+<MudDrawer @bind-Open="@open" Width="400px" Height="100%" Anchor="Anchor.End" Elevation="1" Variant="@DrawerVariant.Temporary">
+    <MudDrawerHeader>
+        <MudText Typo="Typo.h6">Widok</MudText>
+    </MudDrawerHeader>
+    <MudNavMenu>
+        <MudCheckBox @bind-Checked="_public" Label="Wyświetlaj 'Publikuj'" Color="Color.Warning" />
+        <MudCheckBox @bind-Checked="_message" Label="Wyświetlaj 'Wiadomości'" Color="Color.Warning" />
+        <MudCheckBox @bind-Checked="_subscribe" Label="Wyświetlaj 'Subskrybuje'" Color="Color.Warning" />
+        <MudCheckBox @bind-Checked="_nosubscribe" Label="Wyświetlaj 'Nie subskrybuje'" Color="Color.Warning" />
+    </MudNavMenu>
+</MudDrawer>
+
+@code {
+    bool open = false;
+    bool _public = true;
+    bool _message = true;
+    bool _subscribe = true;
+    bool _nosubscribe = true;
+
+    List<MqttMessage> subscribe = new List<MqttMessage>();
+    List<MqttMessage> notsubscribe = new List<MqttMessage>();
+
+    void OpenDrawer()
+    {
+        open = !open;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Create and add some example messages to the 'subscribe' list
+        for (int i = 0; i < 5; i++)
+        {
+            subscribe.Add(new MqttMessage
+                {
+                    BaseMessage = new MqttApplicationMessage
+                    {
+                        Topic = $"subscribe/topic{i}",
+                        PayloadSegment = Encoding.UTF8.GetBytes($"This is subscribe message {i}"),
+                        QualityOfServiceLevel = MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
+                        UserProperties = new List<MqttUserProperty>
+                    {
+                        new MqttUserProperty("Client", $"Client-16452{i}")
+                    }
+                    },
+                    MessageDate = DateTime.Now
+                });
+        }
+
+        // Create and add some example messages to the 'notsubscribe' list
+        for (int i = 0; i < 5; i++)
+        {
+            notsubscribe.Add(new MqttMessage
+                {
+                    BaseMessage = new MqttApplicationMessage
+                    {
+                        Topic = $"notsubscribe/topic{i}",
+                        PayloadSegment = Encoding.UTF8.GetBytes($"This is not subscribe message {i}"),
+                        QualityOfServiceLevel = MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
+                        UserProperties = new List<MqttUserProperty>
+                    {
+                        new MqttUserProperty("Client", $"Client-24234{i}")
+                    }
+                    },
+                    MessageDate = DateTime.Now
+                });
+        }
+    }
+}

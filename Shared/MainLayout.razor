@@ -5,6 +5,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IMqttBrokerService MQTTService
+@inject AppState AppState
 
 <MudThemeProvider />
 <MudDialogProvider />
@@ -25,7 +26,7 @@
         <NavMenu />
     </MudDrawer>
     <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.Large" Class="my-16 pt-2">
+        <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="my-2 pt-2">
             @Body
         </MudContainer>
     </MudMainContent>
@@ -46,13 +47,19 @@
 
     protected override async Task OnInitializedAsync()
     {
-        
+        AppState.OnBrokerStatusChanged += UpdateUI;
     }
 
-    private void HandleBrokerStatusChange()
+
+    private async void UpdateUI()
     {
-        brokerStatus = MQTTService.IsBrokerRunning().Result;
-        StateHasChanged();
+        brokerStatus = AppState.BrokerStatus;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AppState.OnBrokerStatusChanged -= UpdateUI;
     }
 
     void DrawerToggle()
