@@ -42,8 +42,8 @@
     int counter = 0;
     protected override async Task OnInitializedAsync()
     {
-        clients = MQTTService.GetConnectedClients();
-        AppState.OnBrokerStatusChanged += UpdateUI;
+        clients = MQTTService.GetConnectedClients().Result;
+        AppState.OnBrokerChanged += UpdateUI;
     }
 
     private void Disconnect(string client)
@@ -53,12 +53,12 @@
 
     private async void UpdateUI()
     {
-        clients = MQTTService.GetConnectedClients();
+        clients = MQTTService.GetConnectedClients().Result;
         await InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
     {
-        AppState.OnBrokerStatusChanged -= UpdateUI;
+        AppState.OnBrokerChanged -= UpdateUI;
     }
 }

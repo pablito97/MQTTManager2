@@ -130,7 +130,7 @@
     {
         _loading = true;
 
-        AppState.OnBrokerStatusChanged += UpdateUI;
+        AppState.OnBrokerChanged += UpdateUI;
     }
 
     private async Task AddNewBrokerConfigDialog()
@@ -307,6 +307,6 @@
 
     public void Dispose()
     {
-        AppState.OnBrokerStatusChanged -= UpdateUI;
+        AppState.OnBrokerChanged -= UpdateUI;
     }
 }

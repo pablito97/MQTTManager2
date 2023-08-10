@@ -1,12 +1,19 @@
 ﻿@page "/mqtt"
 @using MQTTManager.DB.Model;
+@using MQTTManager.Services;
 @using MQTTnet;
 @using System.Text;
 @using MQTTnet.Packets;
 
-<PageTitle>Publish/Subscribe MQTT</PageTitle>
+@inject AppState AppState
+@inject IMqttBrokerService MQTTService
 
-<MudChip Color="Color.Warning" Size="Size.Large" Icon="@Icons.Material.Filled.ArrowBackIos"  OnClick="@((e) => OpenDrawer())"/>
+<PageTitle>Publish/Subscribe MQTT</PageTitle>
+<div Style="display: flex; float:right;">
+    <MudTooltip Text="Rozwiń dodatkowe ustawienia" Placement="Placement.Right" Arrow="true">
+        <MudIconButton OnClick="@((e) => OpenDrawer())" Size="Size.Large" Color="Color.Warning" Icon="@Icons.Material.Filled.KeyboardDoubleArrowLeft" />
+    </MudTooltip>
+</div>
 
 <MudGrid>
     <MudItem xs="12" visible="@_public">
@@ -22,9 +29,9 @@
             <MudPaper Class="pa-4">
                 <MudStack Spacing="4">
                     <MudForm Disabled="Disabled">
-                        <MudTextField T="string" Label="Topic" />
-                        <MudTextField T="string" Label="Payload" />
-                        <MudNumericField T="int" Label="QoS" />
+                        <MudTextField T="string" Label="Topic" Required />
+                        <MudTextField T="string" Label="Payload" Required />
+                        <MudNumericField T="int" Label="QoS" Required />
                     </MudForm>
                     <MudButton Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Send" Color="Color.Warning">Wyślij</MudButton>
                 </MudStack>
@@ -63,17 +70,20 @@
                     </MudStack>
                 </MudStack>
             </MudPaper>
-            @foreach (var sub in subscribe)
+            @foreach (var message in brokerMessages)
             {
                 <MudPaper Class="pa-4">
                     <MudStack Spacing="4">
-                        <MudTextField T="string" Label="Topic" Value="@sub.BaseMessage.Topic" ReadOnly />
-                        <MudTextField T="string" Label="Payload" Value="@Encoding.UTF8.GetString(sub.BaseMessage.PayloadSegment)" ReadOnly />
+                        <MudTextField T="string" Label="Topic" Value="@message.BaseMessage.Topic" ReadOnly />
+                        <MudTextField T="string" Label="Payload" Value="@Encoding.UTF8.GetString(message.BaseMessage.PayloadSegment)" ReadOnly />
                         <MudStack Row="true">
-                            <MudTextField T="string" Label="Quality" Value="@sub.BaseMessage.QualityOfServiceLevel.ToString()" ReadOnly />
-                            <MudTextField T="string" Label="Client" Value="@sub.BaseMessage.UserProperties.Where(u => u.Name == "Client").First().Value" ReadOnly />
+                            <MudTextField T="string" Label="Quality" Value="@message.BaseMessage.QualityOfServiceLevel.ToString()" ReadOnly />
+                            @if (message.BaseMessage.UserProperties != null)
+                            {
+                                <MudTextField T="string" Label="Client" Value="@message.BaseMessage.UserProperties.Where(u => u.Name == "Client").First().Value" ReadOnly />
+                            }
                         </MudStack>
-                        <MudTextField T="string" Label="Payload" Value="@sub.MessageDate.ToString()" ReadOnly />
+                        <MudTextField T="string" Label="Date" Value="@message.MessageDate.ToString()" ReadOnly />
                     </MudStack>
                 </MudPaper>
             }
@@ -94,7 +104,7 @@
             {
                 <MudPaper Class="pa-4">
                     <MudStack Spacing="4">
-                        <MudTextField T="string" Label="Topic" Value="nosub.BaseMessage.Topic" />
+                        <MudTextField T="string" Label="Topic" Value="nosub" />
                         <MudButton Variant="Variant.Filled" Color="Color.Warning" DisableElevation="true">Dodaj</MudButton>
                     </MudStack>
                 </MudPaper>
@@ -104,9 +114,12 @@
 </MudGrid>
 
 
-<MudDrawer @bind-Open="@open" Width="400px" Height="100%" Anchor="Anchor.End" Elevation="1" Variant="@DrawerVariant.Temporary">
+<MudDrawer @bind-Open="@open" Width="300px" Height="100%" Anchor="Anchor.End" Elevation="1" Variant="@DrawerVariant.Temporary" Style="opacity: 0.9;">
     <MudDrawerHeader>
-        <MudText Typo="Typo.h6">Widok</MudText>
+        <MudTooltip Text="Zwiń" Placement="Placement.Right" Arrow="true">
+            <MudIconButton OnClick="@((e) => OpenDrawer())" Size="Size.Medium" Color="Color.Warning" Icon="@Icons.Material.Filled.KeyboardDoubleArrowRight">Zwiń</MudIconButton>
+        </MudTooltip>
+        <MudSpacer />
     </MudDrawerHeader>
     <MudNavMenu>
         <MudCheckBox @bind-Checked="_public" Label="Wyświetlaj 'Publikuj'" Color="Color.Warning" />
@@ -124,7 +137,8 @@
     bool _nosubscribe = true;
 
     List<MqttMessage> subscribe = new List<MqttMessage>();
-    List<MqttMessage> notsubscribe = new List<MqttMessage>();
+    List<string> notsubscribe = new List<string>();
+    List<MqttMessage> brokerMessages = new List<MqttMessage>();
 
     void OpenDrawer()
     {
@@ -133,42 +147,20 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Create and add some example messages to the 'subscribe' list
-        for (int i = 0; i < 5; i++)
-        {
-            subscribe.Add(new MqttMessage
-                {
-                    BaseMessage = new MqttApplicationMessage
-                    {
-                        Topic = $"subscribe/topic{i}",
-                        PayloadSegment = Encoding.UTF8.GetBytes($"This is subscribe message {i}"),
-                        QualityOfServiceLevel = MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
-                        UserProperties = new List<MqttUserProperty>
-                    {
-                        new MqttUserProperty("Client", $"Client-16452{i}")
-                    }
-                    },
-                    MessageDate = DateTime.Now
-                });
-        }
+        AppState.OnBrokerChanged += UpdateUI;
+        brokerMessages = MQTTService.GetAllMessages().Result;
+        notsubscribe = brokerMessages.GroupBy(b => b.BaseMessage.Topic).Select(group => group.Key).ToList();
+    }
 
-        // Create and add some example messages to the 'notsubscribe' list
-        for (int i = 0; i < 5; i++)
-        {
-            notsubscribe.Add(new MqttMessage
-                {
-                    BaseMessage = new MqttApplicationMessage
-                    {
-                        Topic = $"notsubscribe/topic{i}",
-                        PayloadSegment = Encoding.UTF8.GetBytes($"This is not subscribe message {i}"),
-                        QualityOfServiceLevel = MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
-                        UserProperties = new List<MqttUserProperty>
-                    {
-                        new MqttUserProperty("Client", $"Client-24234{i}")
-                    }
-                    },
-                    MessageDate = DateTime.Now
-                });
-        }
+    private async void UpdateUI()
+    {
+        brokerMessages = MQTTService.GetAllMessages().Result;
+        notsubscribe = brokerMessages.GroupBy(b => b.BaseMessage.Topic).Select(group => group.Key).ToList();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AppState.OnBrokerChanged -= UpdateUI;
     }
 }
