@@ -13,80 +13,58 @@
 <PageTitle>Konfiguracja MQTT</PageTitle>
 
 <MudGrid Justify="Justify.Center">
-    <MudItem md="6" >
+    <MudItem md="6">
         <MudSimpleTable Breakpoint="Breakpoint.Sm" Elevation="3">
-                <thead>
-                    <MudTh>Nazwa</MudTh>
-                    <MudTh>Port</MudTh>
-                    <MudTh>Status</MudTh>
-                    <MudTh>Sterowanie</MudTh>
-                </thead>
-                <tbody>
+            <thead>
+                <MudTh>Nazwa</MudTh>
+                <MudTh>Port</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Sterowanie</MudTh>
+            </thead>
+            <tbody>
                 <MudTd>@defaultBrokerConfig.Name</MudTd>
                 <MudTd>@defaultBrokerConfig.Port</MudTd>
                 <MudTd>@brokerStatus</MudTd>
-                <MudTd>
-                    <MudTooltip Arrow="true" Text="Wystartuj broker">
-                        <MudFab Style="width: 35px;height: 30px" IconColor="Color.Success" Class="hover:mud-success-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.PlayArrow" Size="Size.Small" OnClick="@(() => StartBroker())"></MudFab>
-                    </MudTooltip>
-                    <MudTooltip Arrow="true" Text="Resetuj broker">
-                        <MudFab Style="width: 35px;height: 30px" IconColor="Color.Info" Class="hover:mud-info-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.RestartAlt" Size="Size.Small" OnClick="@(() => RestartBroker())"></MudFab>
-                    </MudTooltip>
-                    <MudTooltip Arrow="true" Text="Zatrzymaj broker">
-                        <MudFab Style="width: 35px;height: 30px" IconColor="Color.Error" Class="hover:mud-error-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.Stop" Size="Size.Small" OnClick="@(() => StopBroker())"></MudFab>
-                    </MudTooltip>
-                </MudTd>
-                </tbody>
-            </MudSimpleTable>
+                @if (defaultBrokerConfig != null)
+                {
+                    <MudTd>
+                        <MudTooltip Arrow="true" Text="Wystartuj broker">
+                            <MudFab Style="width: 35px;height: 30px" IconColor="Color.Success" Class="hover:mud-success-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.PlayArrow" Size="Size.Small" OnClick="@(() => StartBroker())"></MudFab>
+                        </MudTooltip>
+                        <MudTooltip Arrow="true" Text="Resetuj broker">
+                            <MudFab Style="width: 35px;height: 30px" IconColor="Color.Info" Class="hover:mud-info-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.RestartAlt" Size="Size.Small" OnClick="@(() => RestartBroker())"></MudFab>
+                        </MudTooltip>
+                        <MudTooltip Arrow="true" Text="Zatrzymaj broker">
+                            <MudFab Style="width: 35px;height: 30px" IconColor="Color.Error" Class="hover:mud-error-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.Stop" Size="Size.Small" OnClick="@(() => StopBroker())"></MudFab>
+                        </MudTooltip>
+                    </MudTd>
+                }
+            </tbody>
+        </MudSimpleTable>
     </MudItem>
     <MudItem md="12" sm="12">
-            <MudTable ServerData="@ServerReload"
-                      Dense="true" Hover="true" @ref="table" GroupBy="@_groupDefinition"
-                      GroupHeaderStyle="background-color:var(--mud-palette-background-grey)"
-                      GroupFooterClass="mb-4" Loading="@_loading">
-
-                <ToolBarContent>
+        <MudTable Items="@configurationsList" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@_loading" LoadingProgressColor="Color.Info">
+            <ToolBarContent>
                 <MudButton OnClick="@AddNewBrokerConfigDialog" Variant="Variant.Filled" Color="Color.Warning" Class="ml-auto mb-2">Dodaj nową konfigurację</MudButton>
-                <MudSpacer />
-                <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                @*<MudSpacer />*@
+                @*<MudTextField T="string" ValueChanged="@(s=>OnSearch(s))" Placeholder="Search" Adornment="Adornment.Start"
+                AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>*@
             </ToolBarContent>
-            <ColGroup>                
-                @if (_groupDefinition.Expandable)
-                {
-                    <col style="width: 60px;" />
-                }
-                <col />
-                <col />
-                <col />
-            </ColGroup>
             <HeaderContent>
-                <MudTh><MudTableSortLabel SortLabel="name_field" T="BrokerConfigurationModel">Nazwa</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel SortLabel="port_field" T="BrokerConfigurationModel">Port</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel SortLabel="auth_field" T="BrokerConfigurationModel">Autoryzacja</MudTableSortLabel></MudTh>
+                <MudTh>Nazwa</MudTh>
+                <MudTh>Port</MudTh>
+                <MudTh>Autoryzacja</MudTh>
                 <MudTh>Akcje</MudTh>
             </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">@context.Name</MudTd>
+                <MudTd DataLabel="Port">@context.Port</MudTd>
+                <MudTd DataLabel="Authorization">@context.Authorization</MudTd>
+                <MudTd>
 
-            <GroupHeaderTemplate>
-                <MudTh Class="mud-table-cell-custom-group" colspan="5">
-                    @if((bool)context.Key)
-                    {
-                        <text>Domyślne</text>
-                    }
-                    else
-                    {
-                        <text>Pozostałe</text>
-                    }
-                </MudTh>
-            </GroupHeaderTemplate>
-
-                <RowTemplate>
-                    <MudTd DataLabel="Name">@context.Name</MudTd>
-                    <MudTd DataLabel="Port">@context.Port</MudTd>
-                    <MudTd DataLabel="Authorization">@context.Authorization</MudTd>
-                    <MudTd>
+                    <MudStack Row="true">
                         <MudTooltip Arrow="true" Text="Edytuj konfigurację">
-                        <MudFab Style="width: 35px;height: 30px" IconColor="Color.Warning" Class="hover:mud-warning-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.Edit" Size="Size.Small" OnClick="@(() => EditBrokerConfigDialog(@context))"></MudFab>
+                            <MudFab Style="width: 35px;height: 30px" IconColor="Color.Warning" Class="hover:mud-warning-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.Edit" Size="Size.Small" OnClick="@(() => EditBrokerConfigDialog(@context))"></MudFab>
                         </MudTooltip>
                         <MudTooltip Arrow="true" Text="Usuń konfigurację">
                             <MudFab Style="width: 35px;height: 30px" IconColor="Color.Error" Class="hover:mud-error-hover" IconSize="Size.Small" StartIcon="@Icons.Filled.Delete" Size="Size.Small" OnClick="@(() => Delete(@context.Id))"></MudFab>
@@ -97,19 +75,20 @@
                                 <MudFab Style="width: 35px;height: 30px" IconColor="Color.Success" Class="hover:mud-success-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.CheckCircleOutline" Size="Size.Small" OnClick="@(() => SetAsDefault(@context.Id))"></MudFab>
                             </MudTooltip>
                         }
-                    @*@if (context.Authorization != AuthorizationTypes.NONE)
-                    {
+                        @*@if (context.Authorization != AuthorizationTypes.NONE)
+                        {
                         <MudTooltip Arrow="true" Text="Ustaw autoryzacje">
-                            <MudFab Style="width: 35px;height: 30px" IconColor="Color.Info" Class="hover:mud-info-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.Key" Size="Size.Small" OnClick="@(() => SetAuthorization(@context))"></MudFab>
+                        <MudFab Style="width: 35px;height: 30px" IconColor="Color.Info" Class="hover:mud-info-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.Key" Size="Size.Small" OnClick="@(() => SetAuthorization(@context))"></MudFab>
                         </MudTooltip>
-                    }*@
+                        }*@
+                    </MudStack>
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
                 <MudText>Brak wyników do wyświetlenia</MudText>
             </NoRecordsContent>
             <PagerContent>
-                <MudTablePager />
+                <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100, int.MaxValue }" InfoFormat="@($"{infoFormat}")" HorizontalAlignment="HorizontalAlignment.End" />
             </PagerContent>
         </MudTable>
     </MudItem>
@@ -126,10 +105,14 @@
     private string searchString = null;
     private StateTypes brokerStatus = StateTypes.STOPPED;
 
+    private string infoFormat = "{first_item}-{last_item} of {all_items}";
+
     protected override async Task OnInitializedAsync()
     {
         _loading = true;
-
+        configurationsList = await ConfigurationService.GetBrokerConfigurationList();
+        defaultBrokerConfig = await ConfigurationService.GetDefaultBrokerConfiguration();
+        _loading = false;
         AppState.OnBrokerChanged += UpdateUI;
     }
 
@@ -151,9 +134,9 @@
 
         var result = await DialogService.Show<AddEditBrokerConfigurationDialog>("Dodaj nową konfiguracje", parameters, dialogOptions).Result;
 
-        if(!result.Cancelled)
+        if (!result.Cancelled)
         {
-            table.ReloadServerData();
+            await ReloadData();
         }
     }
 
@@ -177,7 +160,7 @@
 
         if (!result.Cancelled)
         {
-            table.ReloadServerData();
+            await ReloadData();
         }
     }
 
@@ -191,7 +174,7 @@
         {
             if (await ConfigurationService.RemoveBrokerConfigurationById(id))
             {
-                table.ReloadServerData();
+                await InvokeAsync(StateHasChanged);
                 Snackbar.Add("Usunięto konfiguracje", Severity.Success);
             }
             else
@@ -212,69 +195,13 @@
             if (await ConfigurationService.SetAsDefaultBrokerConfigurationById(id))
             {
                 await StopBroker();
-                table.ReloadServerData();
+                await ReloadData();
                 Snackbar.Add("Ustawiono nową domyślną konfigurację", Severity.Success);
             }
             else
             {
                 Snackbar.Add("Wystąpił problem przy zmianie konfiguracji", Severity.Error);
             }
-        }
-    }
-
-    private TableGroupDefinition<BrokerConfigurationModel> _groupDefinition = new()
-        {
-            GroupName = "Group",
-            Indentation = false,
-            Expandable = false,
-            Selector = (e) => e.Default
-        };
-
-    private async Task<TableData<BrokerConfigurationModel>> ServerReload(TableState state)
-    {
-        configurationsList = await ConfigurationService.GetBrokerConfigurationList();
-        defaultBrokerConfig = configurationsList.FirstOrDefault(c => c.Default == true);
-        if (defaultBrokerConfig == null) defaultBrokerConfig = new BrokerConfigurationModel();
-
-        IEnumerable<BrokerConfigurationModel> data = configurationsList;
-
-        data = data.Where(element =>
-        {
-            if (string.IsNullOrWhiteSpace(searchString))
-                return true;
-            if (element.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-                return true;
-            if ($"{element.Id} {element.Name} {element.Port}".Contains(searchString))
-                return true;
-            return false;
-        }).ToArray();
-        totalItems = data.Count();
-
-        data = state.SortDirection == SortDirection.None ?
-            data.OrderBy(item => item.Default).ThenBy(item => item.Name) :
-            data.OrderByDirection(state.SortDirection, GetSortingExpression(state.SortLabel));
-
-        pagedData = data.Skip(state.Page * state.PageSize).Take(state.PageSize).ToArray();
-        StateHasChanged();
-
-        _loading = false;
-        return new TableData<BrokerConfigurationModel>() { TotalItems = totalItems, Items = pagedData };
-    }
-
-    private Func<BrokerConfigurationModel, object> GetSortingExpression(string sortLabel)
-    {
-        switch (sortLabel)
-        {
-            case "id_field":
-                return o => o.Id;
-            case "name_field":
-                return o => o.Name;
-            case "port_field":
-                return o => o.Port;
-            case "auth_field":
-                return o => o.Authorization;
-            default:
-                return o => o.Name;
         }
     }
 
@@ -286,23 +213,31 @@
 
     private async Task StartBroker()
     {
-        MQTTService.StartBrokerAsync(defaultBrokerConfig);
+        await MQTTService.StartBrokerAsync(defaultBrokerConfig);
     }
 
     private async Task StopBroker()
     {
-        MQTTService.StopBrokerAsync();
+        await MQTTService.StopBrokerAsync();
     }
 
     private async Task RestartBroker()
     {
-        MQTTService.RestartBrokerAsync(defaultBrokerConfig);
+        await MQTTService.RestartBrokerAsync(defaultBrokerConfig);
     }
 
     private async void UpdateUI()
     {
         brokerStatus = AppState.BrokerStatus;
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ReloadData()
+    {
+        _loading = true;
+        configurationsList = await ConfigurationService.GetBrokerConfigurationList();
+        defaultBrokerConfig = await ConfigurationService.GetDefaultBrokerConfiguration();
+        _loading = false;
     }
 
     public void Dispose()
