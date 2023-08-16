@@ -113,7 +113,7 @@
         configurationsList = await ConfigurationService.GetBrokerConfigurationList();
         defaultBrokerConfig = await ConfigurationService.GetDefaultBrokerConfiguration();
         _loading = false;
-        AppState.OnBrokerChanged += UpdateUI;
+        AppState.OnBrokerStatus += UpdateUI;
     }
 
     private async Task AddNewBrokerConfigDialog()
@@ -242,6 +242,6 @@
 
     public void Dispose()
     {
-        AppState.OnBrokerChanged -= UpdateUI;
+        AppState.OnBrokerStatus -= UpdateUI;
     }
 }

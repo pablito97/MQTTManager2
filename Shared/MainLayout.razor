@@ -47,7 +47,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        AppState.OnBrokerChanged += UpdateUI;
+        AppState.OnBrokerStatus += UpdateUI;
     }
 
 
@@ -59,7 +59,7 @@
 
     public void Dispose()
     {
-        AppState.OnBrokerChanged -= UpdateUI;
+        AppState.OnBrokerStatus -= UpdateUI;
     }
 
     void DrawerToggle()

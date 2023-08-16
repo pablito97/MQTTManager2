@@ -117,7 +117,7 @@
                             </MudStack>
                         </MudStack>
                     </MudPaper>
-                    @foreach (var sub in AppState.SubscriptionTopics)
+                    @foreach (var sub in subscribeList)
                     {
                         <MudPaper Class="pa-4">
                             <MudStack Spacing="4" Row="true">
@@ -139,7 +139,7 @@
                             </MudStack>
                         </MudStack>
                     </MudPaper>
-                    @foreach (var nosub in notsubscribe)
+                    @foreach (var nosub in nosubscribeList)
                     {
                         <MudPaper Class="pa-4">
                             <MudStack Spacing="4" Row="true">
@@ -181,7 +181,8 @@
 
     string filter = "Wszystkie";
 
-    List<string> notsubscribe = new List<string>();
+    List<string> nosubscribeList = new List<string>();
+    List<string> subscribeList = new List<string>();
     List<MqttMessage> brokerMessages = new List<MqttMessage>();
     List<MqttMessage> viewMessages = new List<MqttMessage>();
 
@@ -192,9 +193,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        AppState.OnBrokerChanged += UpdateUI;
+        AppState.OnNewMessage += UpdateUI;
         brokerMessages = MQTTService.GetAllMessages().Result;
-        notsubscribe = AppState.AllTopics.Except(AppState.SubscriptionTopics).ToList();
+        //notsubscribe = AppState.AllTopics.Except(AppState.SubscriptionTopics).ToList();
         await messageFilter();
     }
 
@@ -213,6 +214,9 @@
 
     private async Task messageFilter()
     {
+        subscribeList = AppState.SubscriptionTopics;
+        nosubscribeList = AppState.AllTopics.Except(subscribeList).ToList();
+
         switch(filter){
             case "Wszystkie":
                 viewMessages = brokerMessages;
@@ -228,7 +232,6 @@
                 break;
         }
 
-        notsubscribe = AppState.AllTopics.Except(AppState.SubscriptionTopics).ToList();
         //StateHasChanged();
     }
 
@@ -246,6 +249,6 @@
 
     public void Dispose()
     {
-        AppState.OnBrokerChanged -= UpdateUI;
+        AppState.OnNewMessage -= UpdateUI;
     }
 }

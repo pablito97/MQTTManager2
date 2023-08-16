@@ -8,7 +8,7 @@
 <PageTitle>Klienci MQTT</PageTitle>
 
 <MudGrid Justify="Justify.Center">
-    <MudItem xs="12">
+    <MudItem xs="12" sm="6">
         <MudSimpleTable Style="overflow-x: auto;">
             <thead>
                 <tr>
@@ -19,14 +19,40 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var client in clients)
+                @foreach (var client in clients.Except(AppState.BlackList))
                 {
                     <tr>
                         <td>@(counter + 1)</td>
                         <td>@client</td>
                         <td>
-                            <MudTooltip Arrow="true" Text="Rozłącz klienta">
-                                <MudFab Style="width: 35px;height: 30px" IconColor="Color.Error" Class="hover:mud-error-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.RemoveCircle" Size="Size.Small" OnClick="@(() => Disconnect(client))"></MudFab>
+                            <MudTooltip Arrow="true" Text="Dodaj do czarnej listy">
+                                <MudFab Style="width: 35px;height: 30px" IconColor="Color.Error" Class="hover:mud-error-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.RemoveCircle" Size="Size.Small" OnClick="@(() => AddBlackList(client))"></MudFab>
+                            </MudTooltip>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudSimpleTable Style="overflow-x: auto;">
+            <thead>
+                <tr>
+                    @foreach (var h in headings)
+                    {
+                        <th>@h</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var client in AppState.BlackList)
+                {
+                    <tr>
+                        <td>@(counter + 1)</td>
+                        <td>@client</td>
+                        <td>
+                            <MudTooltip Arrow="true" Text="Usuń z listy">
+                                <MudFab Style="width: 35px;height: 30px" IconColor="Color.Error" Class="hover:mud-error-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.RemoveCircle" Size="Size.Small" OnClick="@(() => RemoveBlackList(client))"></MudFab>
                             </MudTooltip>
                         </td>
                     </tr>
@@ -38,12 +64,22 @@
 
 @code {
     List<string> clients = new List<string>();
-    string[] headings = { "ID", "Nazwa", "Rozłącz" };
+    string[] headings = { "ID", "Nazwa", "Akcja" };
     int counter = 0;
     protected override async Task OnInitializedAsync()
     {
         clients = MQTTService.GetConnectedClients().Result;
         AppState.OnBrokerChanged += UpdateUI;
+    }
+
+    private void AddBlackList(string client)
+    {
+        AppState.BlackList.Add(client);
+    }
+
+    private void RemoveBlackList(string client)
+    {
+        AppState.BlackList.Remove(client);
     }
 
     private void Disconnect(string client)
