@@ -94,14 +94,14 @@
                         <MudStack Spacing="4">
                             <MudForm>
                                 <MudStack Row="true">
-                                    <MudTextField T="string" Label="Topic" Required />
-                                    <MudNumericField T="int" Min="0" Max="2" Label="QoS" Required />
+                                    <MudTextField T="string" @bind-Value="Topic" Label="Topic" Required />
+                                    <MudNumericField T="int" @bind-Value="QoS" Min="0" Max="2" Label="QoS" Required />
                                 </MudStack>
                                 <MudStack>
-                                    <MudTextField T="string" Label="Payload" Required />
+                                    <MudTextField T="string" @bind-Value="Payload" Label="Payload" Required />
                                 </MudStack>
                             </MudForm>
-                            <MudButton Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Send" Color="Color.Warning">Wyślij</MudButton>
+                            <MudButton OnClick="@(() => PublishMessage(Topic, QoS, Payload))" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Send" Color="Color.Warning">Wyślij</MudButton>
                         </MudStack>
                     </MudPaper>
                 </MudStack>
@@ -185,6 +185,17 @@
     List<string> subscribeList = new List<string>();
     List<MqttMessage> brokerMessages = new List<MqttMessage>();
     List<MqttMessage> viewMessages = new List<MqttMessage>();
+
+    private string Topic { get; set; }
+    private int QoS { get; set; }
+    private string Payload { get; set; }
+
+    private void PublishMessage(string topic, int qos, string payload)
+    {
+        // Logika wysyłania wiadomości
+        //Console.WriteLine($"Topic: {topic}, QoS: {qos}, Payload: {payload}");
+        MQTTService.SendMessage(topic, qos, payload);
+    }
 
     void OpenDrawer()
     {
