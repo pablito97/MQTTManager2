@@ -1,0 +1,162 @@
+﻿@page "/configurationDialog"
+
+@using MQTTManager.DB.Model;
+@using MQTTManager.DB.Model.Enum;
+@using MQTTManager.Services;
+
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IBrokerConfigurationService ConfigurationService
+@inject IAuthorizationConfService AuthorizationService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            Dodaj konfigurację
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem md="4">
+                <MudTextField T="string" @bind-Value="brokerConfig.Name" Label="Nazwa" Required="true"></MudTextField>
+            </MudItem>
+            <MudItem md="4">
+                <MudNumericField T="int" @bind-Value="brokerConfig.Port" Label="Port" Required="true"></MudNumericField>
+            </MudItem>
+            <MudItem md="4">
+                <MudSelect @bind-Value="brokerConfig.Authorization" Label="Typ autoryzacji" Required="true">
+                    @foreach (AuthorizationTypes authorization in Enum.GetValues(typeof(AuthorizationTypes)))
+                    {
+                        <MudSelectItem Value="@authorization" />
+                    }
+                </MudSelect>
+            </MudItem>
+            @if (brokerConfig.Authorization == AuthorizationTypes.NORMAL)
+            {
+                <MudItem md="6">
+                    <MudTextField T="string" @bind-Value="brokerConfig.Login" Label="Login"></MudTextField>
+                </MudItem>
+                <MudItem md="6">
+                    <MudTextField T="string" @bind-Value="brokerConfig.HashPassword" Label="Hasło"></MudTextField>
+            </MudItem>
+            }
+            @if (brokerConfig.Authorization == AuthorizationTypes.KEY)
+            {
+                <MudItem md="10">
+                    <MudTextField T="string" @bind-Value="brokerConfig.Key" Label="Klucz"></MudTextField>
+                </MudItem>
+                <MudItem md="2">
+                    <MudTooltip Arrow="true" Text="Generuj klucz">
+                        <MudFab Style="width: 35px;height: 30px" IconColor="Color.Success" Class="hover:mud-success-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.Key" Size="Size.Small" OnClick="@(() => GenerateKey())"></MudFab>
+                    </MudTooltip>
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        @if (addingDialog)
+        {
+            <MudButton Color="Color.Warning" OnClick="Add">Dodaj</MudButton>
+        }
+        else
+        {
+            <MudButton Color="Color.Warning" OnClick="Edit">Edytuj</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public BrokerConfigurationModel brokerConfig { get; set; }
+    [Parameter] public bool addingDialog { get; set; }
+
+    private List<BrokerConfigurationModel> configurationsList = new List<BrokerConfigurationModel>();
+
+    private async Task Add()
+    {
+        if (string.IsNullOrWhiteSpace(brokerConfig.Name) || brokerConfig.Port == 0)
+        {
+            Snackbar.Add("Podaj prawidłowe dane do konfiguracji", Severity.Warning);
+            return;
+        }
+
+        if (brokerConfig.Configuration == null) brokerConfig.Configuration = "";
+
+        switch (brokerConfig.Authorization)
+        {
+            case AuthorizationTypes.KEY:
+                if (brokerConfig.Key == null) { Snackbar.Add("Klucz nie może być pusty", Severity.Warning); return; }
+                else
+                {
+                    brokerConfig.Login = "";
+                    brokerConfig.HashPassword = "";
+                }
+                break;
+            case AuthorizationTypes.NORMAL:
+                if (brokerConfig.Login == null || brokerConfig.HashPassword == null) { Snackbar.Add("Login i hasło nie mogą być puste", Severity.Warning); return; }
+                else
+                {
+                    brokerConfig.Key = "";
+                }
+                break;
+            case AuthorizationTypes.NONE:
+                brokerConfig.Login = "";
+                brokerConfig.HashPassword = "";
+                brokerConfig.Key = "";
+                break;
+        }
+        if (configurationsList.Contains(brokerConfig))
+        {
+            Snackbar.Add("Podobna konfiguracja istnieje", Severity.Warning);
+            return;
+        }
+
+        if (await ConfigurationService.AddBrokerConfiguration(brokerConfig))
+        {
+            Snackbar.Add("Dodano nową konfiguracje", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(""));
+        }
+        else
+        {
+            Snackbar.Add("Nie dodano nowej konfiguracji", Severity.Error);
+        }
+    }
+
+    private async Task Edit()
+    {
+        if (string.IsNullOrWhiteSpace(brokerConfig.Name) || brokerConfig.Port == 0)
+        {
+            Snackbar.Add("Podaj prawidłowe dane do konfiguracji", Severity.Warning);
+            return;
+        }
+
+        if (await ConfigurationService.UpdateBrokerConfiguration(brokerConfig))
+        {
+            Snackbar.Add("Wyedytowano konfiguracje", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(""));
+        }
+        else
+        {
+            Snackbar.Add("Nie ewyedytowano konfiguracji", Severity.Error);
+        }
+    }
+
+    private async Task GenerateKey()
+    {
+        // Generate a random key.
+        var key = new byte[32];
+        var rng = new Random();
+        rng.NextBytes(key);
+
+        // Append a timestamp to the key.
+        var timestamp = DateTime.UtcNow.Ticks;
+        key = BitConverter.GetBytes(timestamp).Concat(key).ToArray();
+
+        brokerConfig.Key = Convert.ToBase64String(key);
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}
