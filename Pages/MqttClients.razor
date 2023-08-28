@@ -1,0 +1,102 @@
+﻿@page "/mqttclients"
+
+@using MQTTManager.Services;
+@inject IMqttBrokerService MQTTService
+@inject ISnackbar Snackbar
+@inject AppState AppState
+
+<PageTitle>Klienci MQTT</PageTitle>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" sm="6">
+        <MudSimpleTable Style="overflow-x: auto;">
+            <thead>
+                <tr>
+                    @foreach (var h in headings)
+                    {
+                        <th>@h</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var client in clients.Except(AppState.BlackList))
+                {
+                    <tr>
+                        <td>@(counter + 1)</td>
+                        <td>@client</td>
+                        <td>
+                            <MudTooltip Arrow="true" Text="Dodaj do czarnej listy">
+                                <MudFab Style="width: 35px;height: 30px" IconColor="Color.Error" Class="hover:mud-error-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.RemoveCircle" Size="Size.Small" OnClick="@(() => AddBlackList(client))"></MudFab>
+                            </MudTooltip>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudSimpleTable Style="overflow-x: auto;">
+            <thead>
+                <tr>
+                    @foreach (var h in headings)
+                    {
+                        <th>@h</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var client in AppState.BlackList)
+                {
+                    <tr>
+                        <td>@(counter + 1)</td>
+                        <td>@client</td>
+                        <td>
+                            <MudTooltip Arrow="true" Text="Usuń z listy">
+                                <MudFab Style="width: 35px;height: 30px" IconColor="Color.Error" Class="hover:mud-error-hover" IconSize="Size.Small" StartIcon="@Icons.Material.Filled.RemoveCircle" Size="Size.Small" OnClick="@(() => RemoveBlackList(client))"></MudFab>
+                            </MudTooltip>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </MudItem>
+</MudGrid>
+
+@code {
+    List<string> clients = new List<string>();
+    string[] headings = { "ID", "Nazwa", "Akcja" };
+    int counter = 0;
+    protected override async Task OnInitializedAsync()
+    {
+        clients = MQTTService.GetConnectedClients().Result;
+        AppState.OnBrokerChanged += UpdateUI;
+    }
+
+    private void AddBlackList(string client)
+    {
+        AppState.BlackList.Add(client);
+        Disconnect(client);
+    }
+
+    private void RemoveBlackList(string client)
+    {
+        AppState.BlackList.Remove(client);
+    }
+
+    private async void Disconnect(string client)
+    {
+        Snackbar.Add($"Rozłączam klienta {client}", Severity.Info);
+        await MQTTService.DisconnectClientAsync(client);
+    }
+
+    private async void UpdateUI()
+    {
+        clients = MQTTService.GetConnectedClients().Result;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AppState.OnBrokerChanged -= UpdateUI;
+    }
+}
