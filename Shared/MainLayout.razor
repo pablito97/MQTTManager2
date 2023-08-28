@@ -47,6 +47,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        brokerStatus = AppState.BrokerStatus;
         AppState.OnBrokerStatus += UpdateUI;
     }
 

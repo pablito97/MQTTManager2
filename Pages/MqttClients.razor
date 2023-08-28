@@ -75,6 +75,7 @@
     private void AddBlackList(string client)
     {
         AppState.BlackList.Add(client);
+        Disconnect(client);
     }
 
     private void RemoveBlackList(string client)
@@ -82,9 +83,10 @@
         AppState.BlackList.Remove(client);
     }
 
-    private void Disconnect(string client)
+    private async void Disconnect(string client)
     {
         Snackbar.Add($"Rozłączam klienta {client}", Severity.Info);
+        await MQTTService.DisconnectClientAsync(client);
     }
 
     private async void UpdateUI()
