@@ -1,0 +1,265 @@
+﻿@page "/mqtt"
+@using MQTTManager.DB.Model;
+@using MQTTManager.Services;
+@using MQTTnet;
+@using System.Text;
+@using MQTTnet.Packets;
+
+@inject AppState AppState
+@inject IMqttBrokerService MQTTService
+
+<PageTitle>Publish/Subscribe MQTT</PageTitle>
+<div Style="display: flex; float:right;">
+    <MudTooltip Text="Rozwiń dodatkowe ustawienia" Placement="Placement.Right" Arrow="true">
+        <MudIconButton OnClick="@((e) => OpenDrawer())" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.KeyboardDoubleArrowLeft" />
+    </MudTooltip>
+</div>
+
+<MudGrid Style="padding-bottom: 70px;">
+    <MudItem sm="8" xs="12">
+
+        <MudGrid>
+            <MudItem xs="12" hidden="@viewMessage">
+                <MudStack>
+                    <MudPaper Class="pa-4">
+                        <MudStack Row="true">
+                            <MudAvatar Color="Color.Warning" Size="Size.Large">W</MudAvatar>
+                            <MudStack Justify="Justify.Center" Spacing="0">
+                                <MudText Typo="Typo.body1">Wiadomości</MudText>
+                            </MudStack>
+                            <MudSpacer />
+
+                            <MudTooltip Arrow="true" Text="Filtrowanie wiadomości">
+                                <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopRight" Style="display: inline-block;">
+                                    <ActivatorContent>
+                                        <MudButton Style="" IconColor="Color.Warning" Class="hover:mud-warning-hover" StartIcon="@Icons.Material.Filled.FilterList" Size="Size.Medium">@filter</MudButton>
+                                    </ActivatorContent>
+                                    <ChildContent>
+                                        <MudMenuItem OnClick="@(() => changeFilter("Wszystkie"))">Wszystkie</MudMenuItem>
+                                        <MudMenuItem OnClick="@(() => changeFilter("Subskrybowane"))">Subskrybowane</MudMenuItem>
+                                        <MudMenuItem OnClick="@(() => changeFilter("Niesubskrybowane"))">Niesubskrybowane</MudMenuItem>
+                                    </ChildContent>
+                                </MudMenu>
+                            </MudTooltip>
+                        </MudStack>
+                    </MudPaper>
+                    <MudGrid>
+                        @foreach (var message in viewMessages)
+                        {
+                            
+                            <MudItem  xs="12" sm="6" lg="4">
+                                <MudPaper Class="pa-4">
+                                    <MudStack Spacing="4">
+                                        @if (AppState.SubscriptionTopics.Contains(@message.BaseMessage.Topic))
+                                        {
+                                            <MudBadge Dot="true" Color="Color.Success" />
+                                        }
+                                        else
+                                        {
+                                            <MudBadge Dot="true" Color="Color.Error" />
+                                        }
+                                        <MudTextField T="string" Label="Topic" Value="@message.BaseMessage.Topic" ReadOnly />
+                                        <MudTextField T="string" Label="Payload" Value="@Encoding.UTF8.GetString(message.BaseMessage.PayloadSegment)" ReadOnly />
+                                        <MudStack Row="true">
+                                            <MudTextField T="string" Label="Quality" Value="@message.BaseMessage.QualityOfServiceLevel.ToString()" ReadOnly />
+                                            @if (message.BaseMessage.UserProperties != null)
+                                            {
+                                                <MudTextField T="string" Label="Client" Value="@message.BaseMessage.UserProperties.Where(u => u.Name == "Client").First().Value" ReadOnly />
+                                            }
+                                        </MudStack>
+                                        <MudTextField T="string" Label="Date" Value="@message.MessageDate.ToString()" ReadOnly />
+                                    </MudStack>
+                                </MudPaper>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    </MudItem>
+
+    <MudItem sm="4" xs="12">
+        <MudGrid>
+            <MudItem xs="12" hidden="@publicMessage">
+                <MudStack>
+                    <MudPaper Class="pa-4">
+                        <MudStack Row="true">
+                            <MudAvatar Color="Color.Success" Size="Size.Large">P</MudAvatar>
+                            <MudStack Justify="Justify.Center" Spacing="0">
+                                <MudText Typo="Typo.body1">Publikuj</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudPaper>
+                    <MudPaper Class="pa-4">
+                        <MudStack Spacing="4">
+                            <MudForm>
+                                <MudStack Row="true">
+                                    <MudTextField T="string" @bind-Value="Topic" Label="Topic" Required />
+                                    <MudNumericField T="int" @bind-Value="QoS" Min="0" Max="2" Label="QoS" Required />
+                                </MudStack>
+                                <MudStack>
+                                    <MudTextField T="string" @bind-Value="Payload" Label="Payload" Required />
+                                </MudStack>
+                            </MudForm>
+                            <MudButton OnClick="@(() => PublishMessage(Topic, QoS, Payload))" Variant="Variant.Filled" EndIcon="@Icons.Material.Filled.Send" Color="Color.Warning">Wyślij</MudButton>
+                        </MudStack>
+                    </MudPaper>
+                </MudStack>
+            </MudItem>
+
+            <MudItem xs="12" hidden="@subscribe">
+                <MudStack>
+                    <MudPaper Class="pa-4">
+                        <MudStack Row="true">
+                            <MudAvatar Color="Color.Success" Size="Size.Large">S</MudAvatar>
+                            <MudStack Justify="Justify.Center" Spacing="0">
+                                <MudText Typo="Typo.body1">Subskrybuje</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudPaper>
+                    @foreach (var sub in subscribeList)
+                    {
+                        <MudPaper Class="pa-4">
+                            <MudStack Spacing="4" Row="true">
+                                <MudTextField T="string" Label="Topic" Value="sub" ReadOnly />
+                                <MudButton OnClick="@((e) => RemoveSubscribe(sub))" Variant="Variant.Filled" Color="Color.Warning" DisableElevation="true">Usuń</MudButton>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                </MudStack>
+            </MudItem>
+
+            <MudItem xs="12" hidden="@nosubscribe">
+                <MudStack>
+                    <MudPaper Class="pa-4">
+                        <MudStack Row="true">
+                            <MudAvatar Color="Color.Surface" Size="Size.Large">N</MudAvatar>
+                            <MudStack Justify="Justify.Center" Spacing="0">
+                                <MudText Typo="Typo.body1">Nie subskrybuje</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudPaper>
+                    @foreach (var nosub in nosubscribeList)
+                    {
+                        <MudPaper Class="pa-4">
+                            <MudStack Spacing="4" Row="true">
+                                <MudTextField T="string" Label="Topic" Value="nosub" />
+                                @if(!AppState.SubscriptionTopics.Contains(nosub)){
+                                    <MudButton OnClick="@((e) => AddSubscribe(nosub))" Variant="Variant.Filled" Color="Color.Warning" DisableElevation="true">Dodaj</MudButton>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    }
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    </MudItem>
+</MudGrid>
+
+
+<MudDrawer @bind-Open="@open" Width="300px" Height="100%" Anchor="Anchor.End" Elevation="1" Variant="@DrawerVariant.Temporary" Style="opacity: 0.9;">
+    <MudDrawerHeader>
+        <MudTooltip Text="Zwiń" Placement="Placement.Right" Arrow="true">
+            <MudIconButton OnClick="@((e) => OpenDrawer())" Size="Size.Medium" Color="Color.Warning" Icon="@Icons.Material.Filled.KeyboardDoubleArrowRight">Zwiń</MudIconButton>
+        </MudTooltip>
+        <MudSpacer />
+    </MudDrawerHeader>
+    <MudNavMenu>
+        <MudCheckBox @bind-Checked="publicMessage" Label="Niewyświetlaj 'Publikuj'" Color="Color.Warning" />
+        <MudCheckBox @bind-Checked="viewMessage" Label="Niewyświetlaj 'Wiadomości'" Color="Color.Warning" />
+        <MudCheckBox @bind-Checked="subscribe" Label="Niewyświetlaj 'Subskrybuje'" Color="Color.Warning" />
+        <MudCheckBox @bind-Checked="nosubscribe" Label="Niewyświetlaj 'Nie subskrybuje'" Color="Color.Warning" />
+    </MudNavMenu>
+</MudDrawer>
+
+@code {
+    bool open = false;
+    bool publicMessage = false;
+    bool viewMessage = false;
+    bool subscribe = false;
+    bool nosubscribe = false;
+
+    string filter = "Wszystkie";
+
+    List<string> nosubscribeList = new List<string>();
+    List<string> subscribeList = new List<string>();
+    List<MqttMessage> brokerMessages = new List<MqttMessage>();
+    List<MqttMessage> viewMessages = new List<MqttMessage>();
+
+    private string Topic { get; set; }
+    private int QoS { get; set; }
+    private string Payload { get; set; }
+
+    private void PublishMessage(string topic, int qos, string payload)
+    {
+        // Logika wysyłania wiadomości
+        //Console.WriteLine($"Topic: {topic}, QoS: {qos}, Payload: {payload}");
+        MQTTService.SendMessage(topic, qos, payload);
+    }
+
+    void OpenDrawer()
+    {
+        open = !open;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        AppState.OnNewMessage += UpdateUI;
+        brokerMessages = MQTTService.GetAllMessages().Result;
+        //notsubscribe = AppState.AllTopics.Except(AppState.SubscriptionTopics).ToList();
+        await messageFilter();
+    }
+
+    private async void UpdateUI()
+    {
+        brokerMessages = MQTTService.GetAllMessages().Result; 
+        await messageFilter();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task changeFilter(string name)
+    {
+        filter = name;
+        await messageFilter();
+    }
+
+    private async Task messageFilter()
+    {
+        subscribeList = AppState.SubscriptionTopics;
+        nosubscribeList = AppState.AllTopics.Except(subscribeList).ToList();
+
+        switch(filter){
+            case "Wszystkie":
+                viewMessages = brokerMessages;
+                break;
+            case "Niesubskrybowane":
+                viewMessages = brokerMessages.Where(m => !AppState.SubscriptionTopics.Any(n => m.BaseMessage.Topic.Contains(n))).ToList();
+                break;
+            case "Subskrybowane":
+                viewMessages = brokerMessages.Where(m => AppState.SubscriptionTopics.Any(n => m.BaseMessage.Topic.Contains(n))).ToList();
+                break;
+            default:
+                viewMessages = brokerMessages;
+                break;
+        }
+
+        //StateHasChanged();
+    }
+
+    private async Task AddSubscribe(string name)
+    {
+        AppState.SubscriptionTopics.Add(name);
+        await messageFilter();
+    }
+
+    private async Task RemoveSubscribe(string name)
+    {
+        AppState.SubscriptionTopics.Remove(name);
+        await messageFilter();
+    }
+
+    public void Dispose()
+    {
+        AppState.OnNewMessage -= UpdateUI;
+    }
+}
